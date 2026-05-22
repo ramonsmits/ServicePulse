@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, vi } from "vitest";
+import { describe, test, expect, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { http, HttpResponse } from "msw";
 import { mockServer } from "../../test/mock-server";

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, vi } from "vitest";
+import { describe, test, expect, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { http, HttpResponse } from "msw";
 import { mockServer } from "../../test/mock-server";
@@ -37,9 +37,7 @@ describe("usePermissions", () => {
     });
 
     test("on 404 (auth disabled) sets allow-all sentinel", async () => {
-      mockServer.use(
-        http.get(`${SC_URL}me/permissions`, () => new HttpResponse(null, { status: 404 }))
-      );
+      mockServer.use(http.get(`${SC_URL}me/permissions`, () => new HttpResponse(null, { status: 404 })));
 
       const { fetchDescriptor, can } = usePermissions();
       await fetchDescriptor();
@@ -57,9 +55,7 @@ describe("usePermissions", () => {
         permissions: [{ permission: "messages:view", scope: null }],
       });
 
-      mockServer.use(
-        http.get(`${SC_URL}me/permissions`, () => new HttpResponse(null, { status: 500 }))
-      );
+      mockServer.use(http.get(`${SC_URL}me/permissions`, () => new HttpResponse(null, { status: 500 })));
 
       const { fetchDescriptor, can } = usePermissions();
       await fetchDescriptor();
