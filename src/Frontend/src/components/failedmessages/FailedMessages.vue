@@ -21,6 +21,7 @@ import { useRecoverabilityStore } from "@/stores/RecoverabilityStore";
 import { useStoreAutoRefresh } from "@/composables/useAutoRefresh";
 import { storeToRefs } from "pinia";
 import LoadingSpinner from "../LoadingSpinner.vue";
+import { usePermissions } from "@/composables/usePermissions";
 
 const POLLING_INTERVAL_NORMAL = 5000;
 const POLLING_INTERVAL_FAST = 1000;
@@ -31,6 +32,7 @@ const loading = ref(false);
 const { autoRefresh, isRefreshing, updateInterval } = useStoreAutoRefresh("recoverabilityStore", useRecoverabilityStore, POLLING_INTERVAL_NORMAL);
 const { store } = autoRefresh();
 const { messages, groupId, groupName, totalCount, pageNumber } = storeToRefs(store);
+const { can } = usePermissions();
 
 const showDelete = ref(false);
 const showConfirmRetryAll = ref(false);
@@ -217,11 +219,11 @@ watch(isRefreshing, () => {
             <div class="btn-toolbar">
               <ActionButton v-if="!isAnythingSelected()" @click="selectAll">Select all</ActionButton>
               <ActionButton v-if="isAnythingSelected()" @click="deselectAll">Clear selection</ActionButton>
-              <ActionButton :icon="faArrowRotateRight" @click="retrySelected()" :disabled="!isAnythingSelected()">Retry {{ numberSelected() }} selected</ActionButton>
-              <ActionButton :icon="faTrash" @click="showDelete = true" :disabled="!isAnythingSelected()">Delete {{ numberSelected() }} selected</ActionButton>
+              <ActionButton v-if="can('messages:retry')" :icon="faArrowRotateRight" @click="retrySelected()" :disabled="!isAnythingSelected()">Retry {{ numberSelected() }} selected</ActionButton>
+              <ActionButton v-if="can('messages:archive')" :icon="faTrash" @click="showDelete = true" :disabled="!isAnythingSelected()">Delete {{ numberSelected() }} selected</ActionButton>
               <ActionButton :icon="faDownload" @click="exportSelected()" :disabled="!isAnythingSelected()">Export {{ numberSelected() }} selected</ActionButton>
-              <ActionButton v-if="groupId" :icon="faArrowRotateRight" @click="showConfirmRetryAll = true">Retry all</ActionButton>
-              <ActionButton v-if="groupId" :icon="faTrash" @click="showConfirmDeleteAll = true">Delete all</ActionButton>
+              <ActionButton v-if="groupId && can('messages:retry')" :icon="faArrowRotateRight" @click="showConfirmRetryAll = true">Retry all</ActionButton>
+              <ActionButton v-if="groupId && can('messages:archive')" :icon="faTrash" @click="showConfirmDeleteAll = true">Delete all</ActionButton>
             </div>
           </div>
           <div class="col-3">
