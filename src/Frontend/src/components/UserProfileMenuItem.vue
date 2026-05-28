@@ -3,6 +3,8 @@ import { ref, onMounted } from "vue";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
 import FAIcon from "@/components/FAIcon.vue";
 import { useAuth } from "@/composables/useAuth";
+import { RouterLink } from "vue-router";
+import routeLinks from "@/router/routeLinks";
 import type { User } from "oidc-client-ts";
 
 const { getUser, logout } = useAuth();
@@ -27,6 +29,10 @@ async function handleLogout() {
       <li class="user-info">
         <span class="user-name">{{ user.profile.name || "User" }}</span>
         <span v-if="user.profile.email" class="user-email">{{ user.profile.email }}</span>
+      </li>
+      <li><hr class="dropdown-divider" /></li>
+      <li>
+        <RouterLink :to="routeLinks.diagnostics" class="diagnostics-link">My access</RouterLink>
       </li>
       <li><hr class="dropdown-divider" /></li>
       <li>
@@ -119,5 +125,17 @@ async function handleLogout() {
 
 .dropdown-menu > li > button:hover {
   background-color: #f5f5f5;
+}
+
+.diagnostics-link {
+  display: block;
+  padding: 6px 20px;
+  color: #333;
+  text-decoration: none;
+}
+
+.diagnostics-link:hover {
+  background-color: #f5f5f5;
+  color: #333;
 }
 </style>

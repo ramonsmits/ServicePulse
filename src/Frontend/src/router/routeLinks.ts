@@ -108,6 +108,7 @@ const routeLinks = {
   configuration: configurationLinks("/configuration"),
   throughput: throughputLinks("/usage"),
   loggedOut: "/logged-out",
+  diagnostics: "/diagnostics",
 };
 
 export default routeLinks;

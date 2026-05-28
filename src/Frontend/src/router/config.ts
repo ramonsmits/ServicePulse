@@ -38,6 +38,13 @@ const config: RouteItem[] = [
     title: "Dashboard",
   },
   {
+    path: routeLinks.diagnostics,
+    component: () => import("@/views/DiagnosticsView.vue"),
+    title: "My Diagnostics",
+    // No requiredPermission — any authenticated user can view their own diagnostics.
+    // No allowAnonymous — must be authenticated.
+  },
+  {
     path: routeLinks.heartbeats.instances.template,
     component: () => import("@/components/heartbeats/EndpointInstances.vue"),
     title: "Endpoint Instances",
