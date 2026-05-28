@@ -9,5 +9,10 @@ export {};
 declare module "vue-router" {
   interface RouteMeta {
     title: string;
+    allowAnonymous?: boolean;
+    /** Gate this route behind a single permission — user must hold it to navigate here. */
+    requiredPermission?: string;
+    /** Gate this route behind any of these permissions — user must hold at least one. */
+    requiredAnyPermission?: string[];
   }
 }

@@ -5,6 +5,8 @@ function meta(item: RouteItem) {
   return {
     title: `${item.title} • ServicePulse`,
     allowAnonymous: item.allowAnonymous ?? false,
+    ...(item.requiredPermission !== undefined ? { requiredPermission: item.requiredPermission } : {}),
+    ...(item.requiredAnyPermission !== undefined ? { requiredAnyPermission: item.requiredAnyPermission } : {}),
   };
 }
 
