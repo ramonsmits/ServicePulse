@@ -45,7 +45,6 @@ export async function loadScenario(): Promise<ScenarioModule> {
   const loader = scenarios[scenarioName];
 
   if (!loader) {
-    // eslint-disable-next-line no-console
     console.warn(`Unknown mock scenario: "${scenarioName}", falling back to default. Available: ${Object.keys(scenarios).join(", ")}`);
     const module = await scenarios.default();
     if (module.setupComplete) await module.setupComplete;
