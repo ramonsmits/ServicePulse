@@ -45,6 +45,13 @@ function entryPermits(entry: PermissionEntry, resource?: string): boolean {
 // Module-singleton state — mirrors the useAuth.ts module-singleton pattern
 let _fetchDescriptor: (() => Promise<void>) | null = null;
 
+// Resolves after the first fetchDescriptor() completes (success or failure).
+// Guards from the router guard running before the descriptor is loaded.
+let _readyResolve: (() => void) | null = null;
+const _ready: Promise<void> = new Promise<void>((resolve) => {
+  _readyResolve = resolve;
+});
+
 /**
  * Permission-aware composable — consumes the GET /api/me/permissions descriptor.
  * Module-singleton shape (single shared fetch function) like useAuth.ts.
@@ -57,6 +64,8 @@ export function usePermissions() {
    * - 200: stores the descriptor.
    * - 404: auth is disabled — sets allow-all sentinel.
    * - Other errors: leaves the existing descriptor intact (fail-safe).
+   *
+   * Resolves `ready` after first invocation so the router guard can wait.
    */
   async function fetchDescriptor(): Promise<void> {
     try {
@@ -81,6 +90,12 @@ export function usePermissions() {
       store.setDescriptor(data);
     } catch (err) {
       logger.error("Error fetching permissions descriptor", err);
+    } finally {
+      // Resolve the ready promise after the first fetch (regardless of outcome)
+      if (_readyResolve) {
+        _readyResolve();
+        _readyResolve = null;
+      }
     }
   }
 
@@ -114,7 +129,25 @@ export function usePermissions() {
     return matchingEntries.some((entry) => entryPermits(entry, resourceName));
   }
 
-  return { fetchDescriptor, can };
+  /**
+   * Returns true if the current user has ANY of the given permissions.
+   * Short-circuits on the first match.
+   * Useful for "show this nav item if the user can do any child action".
+   */
+  function canAny(permissions: string[]): boolean {
+    return permissions.some((p) => can(p));
+  }
+
+  /**
+   * A promise that resolves once the descriptor is known.
+   *
+   * - If the store already has a version (hydrated from sessionStorage or pre-set in tests),
+   *   it resolves immediately so the router guard does not block.
+   * - Otherwise it resolves after the first `fetchDescriptor()` completes.
+   */
+  const ready: Promise<void> = store.version !== null ? Promise.resolve() : _ready;
+
+  return { fetchDescriptor, can, canAny, ready };
 }
 
 /**

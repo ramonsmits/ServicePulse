@@ -216,4 +216,52 @@ describe("usePermissions", () => {
       expect(can("messages:view")).toBe(false);
     });
   });
+
+  describe("canAny(permissions[])", () => {
+    test("returns true when user holds at least one of the listed permissions", () => {
+      const store = usePermissionsStore();
+      store.setDescriptor({
+        version: "2026-05-22T14:30:00Z",
+        user: "alice",
+        permissions: [{ permission: "connections:view", scope: null }],
+      });
+
+      const { canAny } = usePermissions();
+      expect(canAny(["licensing:view", "connections:view", "endpoints:view"])).toBe(true);
+    });
+
+    test("returns false when user holds none of the listed permissions", () => {
+      const store = usePermissionsStore();
+      store.setDescriptor({
+        version: "2026-05-22T14:30:00Z",
+        user: "alice",
+        permissions: [{ permission: "messages:view", scope: null }],
+      });
+
+      const { canAny } = usePermissions();
+      expect(canAny(["licensing:view", "connections:view", "endpoints:view"])).toBe(false);
+    });
+
+    test("returns false for empty permissions array", () => {
+      const store = usePermissionsStore();
+      store.setDescriptor({
+        version: "2026-05-22T14:30:00Z",
+        user: "alice",
+        permissions: [{ permission: "messages:view", scope: null }],
+      });
+
+      const { canAny } = usePermissions();
+      expect(canAny([])).toBe(false);
+    });
+
+    test("allow-all sentinel: returns true for any permissions list", () => {
+      mockServer.use(http.get(`${SC_URL}me/permissions`, () => new HttpResponse(null, { status: 404 })));
+      // Directly set the allow-all sentinel to avoid async fetch
+      const store = usePermissionsStore();
+      store.setDescriptor({ version: "__allow_all__", user: "", permissions: [] });
+
+      const { canAny } = usePermissions();
+      expect(canAny(["licensing:view", "connections:view"])).toBe(true);
+    });
+  });
 });
