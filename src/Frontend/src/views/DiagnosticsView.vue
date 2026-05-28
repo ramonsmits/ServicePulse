@@ -37,7 +37,7 @@ function statusBadgeClass(status: string): string {
       return "badge-status badge-allowed";
     case "scoped":
       return "badge-status badge-scoped";
-    case "not_granted":
+    case "notGranted":
       return "badge-status badge-not-granted";
     default:
       return "badge-status";

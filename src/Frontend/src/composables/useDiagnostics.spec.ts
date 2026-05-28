@@ -22,7 +22,7 @@ const mockDiagnosticsResponse = {
   permissions: [
     { permission: "messages:retry", status: "allowed", scope: null },
     { permission: "messages:edit", status: "scoped", scope: { allow: ["Sales.*"], deny: ["Sales.secret.*"] } },
-    { permission: "licensing:manage", status: "not_granted", scope: null },
+    { permission: "licensing:manage", status: "notGranted", scope: null },
   ],
   policy: { loaded_at: "2026-05-28T14:30:00Z" },
 };

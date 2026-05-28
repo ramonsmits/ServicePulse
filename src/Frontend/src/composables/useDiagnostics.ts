@@ -20,7 +20,7 @@ export interface DiagnosticsPermissionScope {
 
 export interface DiagnosticsPermission {
   permission: string;
-  status: "allowed" | "scoped" | "not_granted";
+  status: "allowed" | "scoped" | "notGranted";
   scope: DiagnosticsPermissionScope | null;
 }
 
