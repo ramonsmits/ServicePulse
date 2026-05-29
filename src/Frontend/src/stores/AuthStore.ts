@@ -47,7 +47,11 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   function transformToAuthConfig(config: AuthConfigResponse): AuthConfig {
-    const apiScope = JSON.parse(config.api_scopes).join(" ");
+    // SC returns api_scopes as a space-separated string (the OIDC scope-list convention).
+    // (Older builds returned a JSON-array string; tolerate both for compatibility.)
+    const apiScope = config.api_scopes.trim().startsWith("[")
+      ? (JSON.parse(config.api_scopes) as string[]).join(" ")
+      : config.api_scopes;
     // Use hash-based URL for post-logout redirect since the app uses hash routing
     const postLogoutRedirectUri = `${window.location.origin}${window.location.pathname}#${routeLinks.loggedOut}`;
     return {
