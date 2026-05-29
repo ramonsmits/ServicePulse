@@ -55,6 +55,13 @@ const _ready: Promise<void> = new Promise<void>((resolve) => {
 /**
  * Permission-aware composable — consumes the GET /api/me/permissions descriptor.
  * Module-singleton shape (single shared fetch function) like useAuth.ts.
+ *
+ * In XACML terms this composable and its consumers (button v-ifs, the router guard,
+ * navigation filters) are the SPA-side **PEPs** (Policy Enforcement Points). They are
+ * UX-only — they hide what the user cannot do. The authoritative PDP lives in ServiceControl;
+ * the descriptor this composable consumes is a *cache* of the effective permission set the
+ * server PDP would return. See `research/platform-authorization/xacml-vocabulary.md`
+ * in the GeneralPlatformExperience repo for the full vocabulary.
  */
 export function usePermissions() {
   const store = usePermissionsStore();
