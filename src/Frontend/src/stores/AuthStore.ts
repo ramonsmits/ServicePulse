@@ -60,7 +60,7 @@ export const useAuthStore = defineStore("auth", () => {
       redirect_uri: window.location.origin,
       post_logout_redirect_uri: postLogoutRedirectUri,
       response_type: "code",
-      scope: `${apiScope} openid profile email offline_access`,
+      scope: `${apiScope} openid profile email`,
       automaticSilentRenew: true,
       loadUserInfo: false,
       includeIdTokenInSilentRenew: true,
