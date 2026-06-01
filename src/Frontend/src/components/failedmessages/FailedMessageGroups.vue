@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from "vue";
+import { useRouter } from "vue-router";
 import { useCookies } from "vue3-cookies";
 import LicenseNotExpired from "../../components/LicenseNotExpired.vue";
 import ServiceControlAvailable from "../ServiceControlAvailable.vue";
@@ -11,6 +12,9 @@ import type GroupOperation from "@/resources/GroupOperation";
 import getSortFunction from "@/components/getSortFunction";
 import { faArrowDownAZ, faArrowDownZA, faArrowDownShortWide, faArrowDownWideShort, faArrowDown19, faArrowDown91 } from "@fortawesome/free-solid-svg-icons";
 import serviceControlClient from "@/components/serviceControlClient";
+import CustomIndexFilterChips from "@/components/CustomIndexFilterChips.vue";
+import { useCustomIndexes } from "@/composables/useCustomIndexes";
+import routeLinks from "@/router/routeLinks";
 
 const selectedClassifier = ref<string>("");
 const classifiers = ref<string[]>([]);
@@ -94,7 +98,45 @@ onMounted(async () => {
 
   selectedClassifier.value = savedClassifier;
   messageGroupList.value?.loadFailedMessageGroups(savedClassifier);
+
+  // Custom-index chip-strip: prefetch the descriptor so chips render immediately.
+  refreshCustomIndexes();
 });
+
+// Custom-index filter chips — spike behaviour: picking a value here navigates to the
+// Filtered Failed Messages list with that filter pre-applied. The Groups view itself
+// doesn't (yet) narrow groups by attribute — that would need a server-side join
+// between the FailureGroup index and the FailedMessage attribute index. For now the
+// chips are a discovery/jump-off affordance.
+const { indexes: customIndexes, refresh: refreshCustomIndexes } = useCustomIndexes();
+const chipFilterValues = ref<Record<string, string>>({});
+const router = useRouter();
+
+function onChipChanged() {
+  // Build the URL query mirroring FilteredMessagesView's expected param shape.
+  const params: Record<string, string> = {};
+  for (const idx of customIndexes.value) {
+    const v = chipFilterValues.value[idx.key];
+    if (v && v.trim().length > 0) {
+      const paramName = idx.operator === "starts-with" ? `attr.${idx.key}.starts-with` : `attr.${idx.key}`;
+      params[paramName] = v.trim();
+    }
+  }
+  if (Object.keys(params).length === 0) {
+    return;
+  }
+  router.push({ path: routeLinks.filteredMessages, query: params });
+}
+
+function clearChip(key: string) {
+  chipFilterValues.value[key] = "";
+}
+
+function clearAllChips() {
+  for (const idx of customIndexes.value) {
+    chipFilterValues.value[idx.key] = "";
+  }
+}
 </script>
 
 <template>
@@ -102,6 +144,27 @@ onMounted(async () => {
     <LicenseNotExpired>
       <section name="message_groups">
         <LastTenOperations></LastTenOperations>
+
+        <div v-if="customIndexes.length > 0" class="row chip-row">
+          <div class="col-12">
+            <div class="chip-strip-hint">
+              <span class="hint-label">Filter:</span>
+              <CustomIndexFilterChips
+                :filter-values="chipFilterValues"
+                @change="onChipChanged"
+                @clear="clearChip"
+                @clear-all="clearAllChips"
+              />
+            </div>
+            <div class="text-muted chip-strip-note">
+              Picking a value here jumps to the
+              <RouterLink :to="routeLinks.filteredMessages">Filtered Failed Messages</RouterLink>
+              list with the filter applied.
+              The groups list above is unfiltered — narrowing groups by attribute is a follow-up task.
+            </div>
+          </div>
+        </div>
+
         <div class="row">
           <div class="col-6 list-section">
             <h3>Failed message group</h3>
@@ -144,5 +207,21 @@ onMounted(async () => {
   border: none;
   color: var(--sp-blue);
   text-decoration: underline;
+}
+.chip-row {
+  margin: 1rem 0 0.5rem;
+}
+.chip-strip-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.hint-label {
+  font-weight: 500;
+  color: #57606a;
+}
+.chip-strip-note {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
 }
 </style>

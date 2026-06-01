@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { useCustomIndexes, type CustomIndexEntry, type AttributeValueCount } from "@/composables/useCustomIndexes";
+import { useRoute } from "vue-router";
+import { useCustomIndexes } from "@/composables/useCustomIndexes";
 import { authFetch } from "@/composables/useAuthenticatedFetch";
+import CustomIndexFilterChips from "@/components/CustomIndexFilterChips.vue";
 
 interface FailedMessageRow {
   id: string;
@@ -13,7 +15,8 @@ interface FailedMessageRow {
   exception?: { message?: string; exception_type?: string };
 }
 
-const { indexes, version, refresh: refreshIndexes, error: indexesError, valuesFor, fetchValues } = useCustomIndexes();
+const { indexes, version, refresh: refreshIndexes, error: indexesError } = useCustomIndexes();
+const route = useRoute();
 
 // One reactive filter value per configured index, keyed by header name.
 const filterValues = ref<Record<string, string>>({});
@@ -114,30 +117,15 @@ function clearAll() {
   runQuery();
 }
 
-function authzLabel(entry: CustomIndexEntry): string {
-  if (!entry.authz) {
-    return "open";
-  }
-  if (entry.authz.source === "idp-claim") {
-    return `IdP claim: ${entry.authz.claim}`;
-  }
-  return entry.authz.source;
-}
-
-function getValues(key: string): AttributeValueCount[] {
-  return valuesFor(key).value;
-}
-
 onMounted(async () => {
   await refreshIndexes();
-  // Initialize filter values + load distinct value lists for equals chips.
+  // Initialize filter values: prefer URL query params, fall back to empty.
+  // Lets the Groups view cross-navigate here with a filter pre-applied
+  // (e.g. /filtered-messages?attr.NServiceBus.Tenant=acme).
   for (const idx of indexes.value) {
     if (!(idx.key in filterValues.value)) {
-      filterValues.value[idx.key] = "";
-    }
-    if (idx.operator !== "starts-with") {
-      // dropdown chips need their option list — load lazily, fire-and-forget
-      fetchValues(idx.key);
+      const fromUrl = route.query[`attr.${idx.key}`] ?? route.query[`attr.${idx.key}.starts-with`];
+      filterValues.value[idx.key] = typeof fromUrl === "string" ? fromUrl : "";
     }
   }
   await runQuery();
@@ -182,43 +170,12 @@ watch(
 
     <div v-if="indexes.length > 0" class="row chip-row">
       <div class="col-12">
-        <div class="chips">
-          <div v-for="entry in indexes" :key="entry.key" class="chip">
-            <label :for="`chip-${entry.key}`">
-              <span class="chip-key">{{ entry.key }}</span>
-              <span class="chip-authz">{{ authzLabel(entry) }}</span>
-            </label>
-            <!-- starts-with operator: free-text input (prefixes aren't enumerable) -->
-            <input
-              v-if="entry.operator === 'starts-with'"
-              :id="`chip-${entry.key}`"
-              v-model="filterValues[entry.key]"
-              type="text"
-              placeholder="starts with…"
-              autocomplete="off"
-            />
-            <!-- equals operator: dropdown populated from /custom-indexes/{key}/values -->
-            <select
-              v-else
-              :id="`chip-${entry.key}`"
-              v-model="filterValues[entry.key]"
-            >
-              <option value="">— any —</option>
-              <option v-for="v in getValues(entry.key)" :key="v.value" :value="v.value">
-                {{ v.value }} ({{ v.count }})
-              </option>
-            </select>
-            <button
-              v-if="filterValues[entry.key]"
-              class="chip-clear"
-              :aria-label="`Clear ${entry.key} filter`"
-              @click="clearFilter(entry.key)"
-            >
-              ×
-            </button>
-          </div>
-          <button class="btn btn-sm btn-link clear-all" @click="clearAll">Clear all</button>
-        </div>
+        <CustomIndexFilterChips
+          :filter-values="filterValues"
+          @change="runQuery"
+          @clear="clearFilter"
+          @clear-all="clearAll"
+        />
       </div>
     </div>
 
@@ -279,61 +236,6 @@ watch(
 <style scoped>
 .chip-row {
   margin-top: 1rem;
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: stretch;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: #f5f7fa;
-  border: 1px solid #d0d7de;
-  border-radius: 999px;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.9rem;
-}
-.chip label {
-  display: inline-flex;
-  flex-direction: column;
-  margin: 0;
-  font-weight: 400;
-}
-.chip-key {
-  font-family: monospace;
-  font-size: 0.85rem;
-  color: #1f2328;
-}
-.chip-authz {
-  font-size: 0.7rem;
-  color: #6e7781;
-}
-.chip input,
-.chip select {
-  width: 14em;
-  padding: 0.2rem 0.4rem;
-  border: 1px solid #d0d7de;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  background: white;
-}
-.chip-clear {
-  background: none;
-  border: none;
-  color: #6e7781;
-  cursor: pointer;
-  font-size: 1.2rem;
-  line-height: 1;
-  padding: 0;
-}
-.chip-clear:hover {
-  color: #cf222e;
-}
-.clear-all {
-  align-self: center;
 }
 .narrow-banner {
   margin-top: 0.75rem;
