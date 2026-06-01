@@ -41,7 +41,11 @@ function buildUrl(): string {
   for (const idx of indexes.value) {
     const v = filterValues.value[idx.key];
     if (v && v.trim().length > 0) {
-      params.set(`attr.${idx.key}`, v.trim());
+      // The operator hint on the index decides which query param shape to use:
+      //   equals      → ?attr.<key>=<v>
+      //   starts-with → ?attr.<key>.starts-with=<v>
+      const paramName = idx.operator === "starts-with" ? `attr.${idx.key}.starts-with` : `attr.${idx.key}`;
+      params.set(paramName, v.trim());
     }
   }
   return `${baseUrl.value}errors/by-attributes?${params.toString()}`;
@@ -180,7 +184,7 @@ watch(
               :id="`chip-${entry.key}`"
               v-model="filterValues[entry.key]"
               type="text"
-              placeholder="any"
+              :placeholder="entry.operator === 'starts-with' ? 'starts with…' : 'any'"
               autocomplete="off"
             />
             <button

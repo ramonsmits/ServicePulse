@@ -41,12 +41,14 @@ function authzSummary(authz: { source: string; claim?: string; key?: string } | 
       <thead>
         <tr>
           <th>Header key</th>
+          <th>Operator</th>
           <th>Authorization source</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="entry in indexes" :key="entry.key">
           <td><code>{{ entry.key }}</code></td>
+          <td><code>{{ entry.operator }}</code></td>
           <td>{{ authzSummary(entry.authz) }}</td>
         </tr>
       </tbody>

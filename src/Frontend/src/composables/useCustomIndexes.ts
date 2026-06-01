@@ -8,6 +8,7 @@ import logger from "@/logger";
  */
 export interface CustomIndexEntry {
   key: string;
+  operator: string; // "equals" | "starts-with"
   authz?: {
     source: string; // "idp-claim" today; "role" reserved
     claim?: string;
