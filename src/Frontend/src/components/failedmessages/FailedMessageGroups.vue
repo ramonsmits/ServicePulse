@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, useTemplateRef } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, ref, useTemplateRef } from "vue";
 import { useCookies } from "vue3-cookies";
 import LicenseNotExpired from "../../components/LicenseNotExpired.vue";
 import ServiceControlAvailable from "../ServiceControlAvailable.vue";
@@ -14,7 +13,7 @@ import { faArrowDownAZ, faArrowDownZA, faArrowDownShortWide, faArrowDownWideShor
 import serviceControlClient from "@/components/serviceControlClient";
 import CustomIndexFilterChips from "@/components/CustomIndexFilterChips.vue";
 import { useCustomIndexes } from "@/composables/useCustomIndexes";
-import routeLinks from "@/router/routeLinks";
+import { authFetch } from "@/composables/useAuthenticatedFetch";
 
 const selectedClassifier = ref<string>("");
 const classifiers = ref<string[]>([]);
@@ -75,6 +74,8 @@ function classifierChanged(classifier: string) {
   selectedClassifier.value = classifier;
   saveDefaultGroupingClassifier(classifier);
   messageGroupList.value?.loadFailedMessageGroups(classifier);
+  // Re-resolve the group ID allow-list against the new classifier
+  applyChipFilter();
 }
 
 function loadDefaultGroupingClassifier() {
@@ -103,39 +104,69 @@ onMounted(async () => {
   refreshCustomIndexes();
 });
 
-// Custom-index filter chips — spike behaviour: picking a value here navigates to the
-// Filtered Failed Messages list with that filter pre-applied. The Groups view itself
-// doesn't (yet) narrow groups by attribute — that would need a server-side join
-// between the FailureGroup index and the FailedMessage attribute index. For now the
-// chips are a discovery/jump-off affordance.
+// Custom-index filter chips: when any chip has a value, fetch the set of group IDs whose
+// underlying messages match those attribute predicates (for the currently-selected
+// classifier), and pass that set to MessageGroupList as an allow-list. Null ⇒ no filter.
 const { indexes: customIndexes, refresh: refreshCustomIndexes } = useCustomIndexes();
 const chipFilterValues = ref<Record<string, string>>({});
-const router = useRouter();
+const allowedGroupIds = ref<string[] | null>(null);
+const groupFilterError = ref<string | null>(null);
 
-function onChipChanged() {
-  // Build the URL query mirroring FilteredMessagesView's expected param shape.
-  const params: Record<string, string> = {};
+const baseUrl = computed(() => {
+  const root = (window as unknown as { defaultConfig?: { service_control_url?: string } }).defaultConfig?.service_control_url ?? "/api/";
+  return root.endsWith("/") ? root : `${root}/`;
+});
+
+function activeFilterParams(): URLSearchParams | null {
+  const params = new URLSearchParams();
+  let any = false;
   for (const idx of customIndexes.value) {
     const v = chipFilterValues.value[idx.key];
     if (v && v.trim().length > 0) {
       const paramName = idx.operator === "starts-with" ? `attr.${idx.key}.starts-with` : `attr.${idx.key}`;
-      params[paramName] = v.trim();
+      params.set(paramName, v.trim());
+      any = true;
     }
   }
-  if (Object.keys(params).length === 0) {
+  return any ? params : null;
+}
+
+async function applyChipFilter() {
+  const params = activeFilterParams();
+  if (params === null) {
+    // No chips active → clear the filter and show all groups.
+    allowedGroupIds.value = null;
+    groupFilterError.value = null;
     return;
   }
-  router.push({ path: routeLinks.filteredMessages, query: params });
+  if (!selectedClassifier.value) {
+    return;
+  }
+  try {
+    const url = `${baseUrl.value}recoverability/groups/${encodeURIComponent(selectedClassifier.value)}/by-attributes/group-ids?${params.toString()}`;
+    const response = await authFetch(url);
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const ids = (await response.json()) as string[];
+    allowedGroupIds.value = ids;
+    groupFilterError.value = null;
+  } catch (e) {
+    groupFilterError.value = (e as Error)?.message ?? String(e);
+    allowedGroupIds.value = [];
+  }
 }
 
 function clearChip(key: string) {
   chipFilterValues.value[key] = "";
+  applyChipFilter();
 }
 
 function clearAllChips() {
   for (const idx of customIndexes.value) {
     chipFilterValues.value[idx.key] = "";
   }
+  applyChipFilter();
 }
 </script>
 
@@ -151,16 +182,17 @@ function clearAllChips() {
               <span class="hint-label">Filter:</span>
               <CustomIndexFilterChips
                 :filter-values="chipFilterValues"
-                @change="onChipChanged"
+                @change="applyChipFilter"
                 @clear="clearChip"
                 @clear-all="clearAllChips"
               />
             </div>
-            <div class="text-muted chip-strip-note">
-              Picking a value here jumps to the
-              <RouterLink :to="routeLinks.filteredMessages">Filtered Failed Messages</RouterLink>
-              list with the filter applied.
-              The groups list above is unfiltered — narrowing groups by attribute is a follow-up task.
+            <div v-if="allowedGroupIds !== null" class="text-muted chip-strip-note">
+              Groups list narrowed to <strong>{{ allowedGroupIds.length }}</strong> group(s)
+              whose underlying messages match the filter.
+            </div>
+            <div v-if="groupFilterError" class="alert alert-warning chip-strip-note">
+              Couldn't resolve matching groups: {{ groupFilterError }}
             </div>
           </div>
         </div>
@@ -190,7 +222,7 @@ function clearAllChips() {
             <div class="col-12">
               <div class="list-section">
                 <div class="col-12 form-group">
-                  <MessageGroupList :sortFunction="sortMethod" ref="messageGroupList"></MessageGroupList>
+                  <MessageGroupList :sortFunction="sortMethod" :allowed-group-ids="allowedGroupIds" ref="messageGroupList"></MessageGroupList>
                 </div>
               </div>
             </div>
