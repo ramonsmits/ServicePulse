@@ -119,6 +119,9 @@ function preventIfDisabled(e: Event) {
             >
               <RouterLink :to="routeLinks.configuration.endpointConnection.link">Endpoint Connection</RouterLink>
             </h5>
+            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.customIndexes.link) }" class="nav-item" role="tab" aria-label="custom-indexes">
+              <RouterLink :to="routeLinks.configuration.customIndexes.link">Custom indexes (spike)</RouterLink>
+            </h5>
           </template>
           <template v-else>
             <h5 v-if="showConnections" :class="{ active: isRouteSelected(routeLinks.configuration.connections.link) }" class="nav-item" role="tab" aria-label="connections">

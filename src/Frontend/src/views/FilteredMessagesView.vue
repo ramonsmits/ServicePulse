@@ -159,7 +159,7 @@ watch(
         <p class="text-muted">
           Filters resolved against the dynamic-field <code>FailedMessage/Attributes</code> RavenDB index. Values are
           intersected with your authorized set per the loaded
-          <RouterLink to="/custom-indexes">custom-index config</RouterLink> (active version: <code>{{ version || "—" }}</code>).
+          <RouterLink to="/configuration/custom-indexes">custom-index config</RouterLink> (active version: <code>{{ version || "—" }}</code>).
         </p>
       </div>
     </div>

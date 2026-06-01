@@ -51,13 +51,6 @@ const config: RouteItem[] = [
     requiredPermission: "messages:view",
   },
   {
-    path: routeLinks.customIndexes,
-    component: () => import("@/views/CustomIndexesView.vue"),
-    title: "Custom indexes",
-    // Spike: any authenticated user can view the configured indexes.
-    // When POST/DELETE land, gate with a new "indexes:manage" permission.
-  },
-  {
     path: routeLinks.heartbeats.instances.template,
     component: () => import("@/components/heartbeats/EndpointInstances.vue"),
     title: "Endpoint Instances",
@@ -247,6 +240,13 @@ const config: RouteItem[] = [
         path: routeLinks.configuration.endpointConnection.template,
         component: () => import("@/components/configuration/EndpointConnection.vue"),
         requiredPermission: "endpoints:view",
+      },
+      {
+        title: "Custom indexes (spike)",
+        path: routeLinks.configuration.customIndexes.template,
+        component: () => import("@/views/CustomIndexesView.vue"),
+        // No requiredPermission — any authenticated user can view the configured indexes today.
+        // When POST/DELETE land, gate with a new "indexes:manage" permission.
       },
       {
         title: "Usage Setup",
