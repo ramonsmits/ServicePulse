@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { useCustomIndexes, type CustomIndexEntry } from "@/composables/useCustomIndexes";
+import { useCustomIndexes, type CustomIndexEntry, type AttributeValueCount } from "@/composables/useCustomIndexes";
 import { authFetch } from "@/composables/useAuthenticatedFetch";
 
 interface FailedMessageRow {
@@ -13,7 +13,7 @@ interface FailedMessageRow {
   exception?: { message?: string; exception_type?: string };
 }
 
-const { indexes, version, refresh: refreshIndexes, error: indexesError } = useCustomIndexes();
+const { indexes, version, refresh: refreshIndexes, error: indexesError, valuesFor, fetchValues } = useCustomIndexes();
 
 // One reactive filter value per configured index, keyed by header name.
 const filterValues = ref<Record<string, string>>({});
@@ -124,12 +124,20 @@ function authzLabel(entry: CustomIndexEntry): string {
   return entry.authz.source;
 }
 
+function getValues(key: string): AttributeValueCount[] {
+  return valuesFor(key).value;
+}
+
 onMounted(async () => {
   await refreshIndexes();
-  // Initialize filter values for each configured index.
+  // Initialize filter values + load distinct value lists for equals chips.
   for (const idx of indexes.value) {
     if (!(idx.key in filterValues.value)) {
       filterValues.value[idx.key] = "";
+    }
+    if (idx.operator !== "starts-with") {
+      // dropdown chips need their option list — load lazily, fire-and-forget
+      fetchValues(idx.key);
     }
   }
   await runQuery();
@@ -180,13 +188,26 @@ watch(
               <span class="chip-key">{{ entry.key }}</span>
               <span class="chip-authz">{{ authzLabel(entry) }}</span>
             </label>
+            <!-- starts-with operator: free-text input (prefixes aren't enumerable) -->
             <input
+              v-if="entry.operator === 'starts-with'"
               :id="`chip-${entry.key}`"
               v-model="filterValues[entry.key]"
               type="text"
-              :placeholder="entry.operator === 'starts-with' ? 'starts with…' : 'any'"
+              placeholder="starts with…"
               autocomplete="off"
             />
+            <!-- equals operator: dropdown populated from /custom-indexes/{key}/values -->
+            <select
+              v-else
+              :id="`chip-${entry.key}`"
+              v-model="filterValues[entry.key]"
+            >
+              <option value="">— any —</option>
+              <option v-for="v in getValues(entry.key)" :key="v.value" :value="v.value">
+                {{ v.value }} ({{ v.count }})
+              </option>
+            </select>
             <button
               v-if="filterValues[entry.key]"
               class="chip-clear"
@@ -290,12 +311,14 @@ watch(
   font-size: 0.7rem;
   color: #6e7781;
 }
-.chip input {
-  width: 12em;
+.chip input,
+.chip select {
+  width: 14em;
   padding: 0.2rem 0.4rem;
   border: 1px solid #d0d7de;
   border-radius: 4px;
   font-size: 0.9rem;
+  background: white;
 }
 .chip-clear {
   background: none;
