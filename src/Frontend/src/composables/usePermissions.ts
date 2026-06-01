@@ -126,6 +126,15 @@ export function usePermissions() {
       return true;
     }
 
+    // Wildcard grant (sc-admin holds permission "*") matches any verb.
+    // An unscoped wildcard grant means "all permissions on all resources".
+    const hasWildcard = store.permissions.some(
+      (e) => e.permission === "*" && entryPermits(e, resourceName),
+    );
+    if (hasWildcard) {
+      return true;
+    }
+
     const matchingEntries = store.permissions.filter((e) => e.permission === permission);
 
     if (matchingEntries.length === 0) {
