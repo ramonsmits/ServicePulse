@@ -109,6 +109,8 @@ const routeLinks = {
   throughput: throughputLinks("/usage"),
   loggedOut: "/logged-out",
   diagnostics: "/diagnostics",
+  filteredMessages: "/filtered-messages",
+  customIndexes: "/custom-indexes",
 };
 
 export default routeLinks;

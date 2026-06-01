@@ -56,6 +56,11 @@ const { failedMessageCount, archivedMessageCount, pendingRetriesMessageCount } =
               <RouterLink :to="routeLinks.failedMessage.pendingRetries.link">Pending Retries </RouterLink>
               <span v-if="pendingRetriesMessageCount !== 0" class="badge badge-important">{{ pendingRetriesMessageCount }}</span>
             </h5>
+
+            <!--Filtered (custom-index spike) -->
+            <h5>
+              <RouterLink :to="routeLinks.filteredMessages">Filtered (spike)</RouterLink>
+            </h5>
           </div>
         </div>
       </div>

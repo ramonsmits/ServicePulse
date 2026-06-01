@@ -45,6 +45,19 @@ const config: RouteItem[] = [
     // No allowAnonymous — must be authenticated.
   },
   {
+    path: routeLinks.filteredMessages,
+    component: () => import("@/views/FilteredMessagesView.vue"),
+    title: "Filtered Failed Messages",
+    requiredPermission: "messages:view",
+  },
+  {
+    path: routeLinks.customIndexes,
+    component: () => import("@/views/CustomIndexesView.vue"),
+    title: "Custom indexes",
+    // Spike: any authenticated user can view the configured indexes.
+    // When POST/DELETE land, gate with a new "indexes:manage" permission.
+  },
+  {
     path: routeLinks.heartbeats.instances.template,
     component: () => import("@/components/heartbeats/EndpointInstances.vue"),
     title: "Endpoint Instances",
