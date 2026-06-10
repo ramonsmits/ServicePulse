@@ -16,26 +16,24 @@ import monitoringClient from "@/components/monitoring/monitoringClient";
 import UserProfileMenuItem from "@/components/UserProfileMenuItem.vue";
 import { useAuthStore } from "@/stores/AuthStore";
 import { storeToRefs } from "pinia";
+import { usePermissions } from "@/composables/usePermissions";
 
 const isMonitoringEnabled = monitoringClient.isMonitoringEnabled;
 
 const authStore = useAuthStore();
 const { authEnabled, isAuthenticated } = storeToRefs(authStore);
 
-// prettier-ignore
-const menuItems = computed(
-  () => [
-  DashboardMenuItem,
-  HeartbeatsMenuItem,
-  ...(isMonitoringEnabled ? [MonitoringMenuItem] : []),
-  AuditMenuItem,
-  FailedMessagesMenuItem,
-  CustomChecksMenuItem,
-  EventsMenuItem,
-  ThroughputMenuItem,
-  ConfigurationMenuItem,
-  FeedbackButton,
-]);
+const { can, canAny } = usePermissions();
+
+// Reactive nav-item visibility — re-evaluates whenever the permissions store updates.
+const showHeartbeats = computed(() => can("heartbeats:view"));
+const showAudit = computed(() => can("messages:view"));
+const showFailedMessages = computed(() => can("messages:view"));
+const showMonitoring = computed(() => isMonitoringEnabled && can("monitoring:view"));
+const showCustomChecks = computed(() => can("customchecks:view"));
+const showEvents = computed(() => can("eventlog:view"));
+const showThroughput = computed(() => can("throughput:view"));
+const showConfiguration = computed(() => canAny(["licensing:view", "notifications:view", "redirects:view", "connections:view", "endpoints:view"]));
 </script>
 
 <template>
@@ -49,8 +47,35 @@ const menuItems = computed(
 
       <div id="navbar" class="navbar navbar-expand-lg">
         <ul class="nav navbar-nav navbar-inverse">
-          <li v-for="menuItem in menuItems" :key="menuItem?.name">
-            <component :is="menuItem" />
+          <li>
+            <DashboardMenuItem />
+          </li>
+          <li v-if="showHeartbeats">
+            <HeartbeatsMenuItem />
+          </li>
+          <li v-if="showMonitoring">
+            <MonitoringMenuItem />
+          </li>
+          <li v-if="showAudit">
+            <AuditMenuItem />
+          </li>
+          <li v-if="showFailedMessages">
+            <FailedMessagesMenuItem />
+          </li>
+          <li v-if="showCustomChecks">
+            <CustomChecksMenuItem />
+          </li>
+          <li v-if="showEvents">
+            <EventsMenuItem />
+          </li>
+          <li v-if="showThroughput">
+            <ThroughputMenuItem />
+          </li>
+          <li v-if="showConfiguration">
+            <ConfigurationMenuItem />
+          </li>
+          <li>
+            <FeedbackButton />
           </li>
           <li v-if="authEnabled && isAuthenticated">
             <UserProfileMenuItem />

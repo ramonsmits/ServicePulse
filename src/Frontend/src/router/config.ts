@@ -19,6 +19,10 @@ export interface RouteItem {
   component?: RouteComponent | (() => Promise<RouteComponent>);
   children?: RouteItem[];
   allowAnonymous?: boolean;
+  /** Gate this route behind a single permission — user must hold it to navigate here. */
+  requiredPermission?: string;
+  /** Gate this route behind any of these permissions — user must hold at least one. */
+  requiredAnyPermission?: string[];
 }
 
 const config: RouteItem[] = [
@@ -34,15 +38,30 @@ const config: RouteItem[] = [
     title: "Dashboard",
   },
   {
+    path: routeLinks.diagnostics,
+    component: () => import("@/views/DiagnosticsView.vue"),
+    title: "My Diagnostics",
+    // No requiredPermission — any authenticated user can view their own diagnostics.
+    // No allowAnonymous — must be authenticated.
+  },
+  {
+    path: routeLinks.filteredMessages,
+    component: () => import("@/views/FilteredMessagesView.vue"),
+    title: "Filtered Failed Messages",
+    requiredPermission: "messages:view",
+  },
+  {
     path: routeLinks.heartbeats.instances.template,
     component: () => import("@/components/heartbeats/EndpointInstances.vue"),
     title: "Endpoint Instances",
+    requiredPermission: "heartbeats:view",
   },
   {
     path: routeLinks.heartbeats.root,
     component: HeartbeatsView,
     title: "Heartbeats",
     redirect: routeLinks.heartbeats.unhealthy.link,
+    requiredPermission: "heartbeats:view",
     children: [
       {
         title: "Unhealthy Endpoints",
@@ -65,12 +84,14 @@ const config: RouteItem[] = [
     path: routeLinks.messages.root,
     component: AuditView,
     title: "All Messages",
+    requiredPermission: "messages:view",
   },
   {
     path: routeLinks.failedMessage.root,
     component: FailedMessagesView,
     title: "Failed Messages",
     redirect: routeLinks.failedMessage.failedMessagesGroups.link,
+    requiredPermission: "messages:view",
     children: [
       {
         title: "Failed Message Groups",
@@ -118,37 +139,44 @@ const config: RouteItem[] = [
     path: routeLinks.messages.failedMessage.template,
     title: "Message",
     component: () => import("@/components/messages/MessageView.vue"),
+    requiredPermission: "messages:view",
   },
   {
     path: routeLinks.messages.successMessage.template,
     title: "Message",
     component: () => import("@/components/messages/MessageView.vue"),
+    requiredPermission: "messages:view",
   },
   {
     path: routeLinks.monitoring.root,
     component: MonitoringView,
     title: "Monitored Endpoints",
+    requiredPermission: "monitoring:view",
   },
   {
     path: routeLinks.monitoring.endpointDetails.template,
     component: () => import("@/components/monitoring/EndpointDetails.vue"),
     title: "Endpoint Details",
+    requiredPermission: "monitoring:view",
   },
   {
     path: routeLinks.customChecks,
     title: "Custom checks",
     component: CustomChecksView,
+    requiredPermission: "customchecks:view",
   },
   {
     path: routeLinks.events,
     component: EventsView,
     title: "Events",
+    requiredPermission: "eventlog:view",
   },
   {
     path: routeLinks.throughput.root,
     component: ThroughputReportView,
     title: "Usage",
     redirect: routeLinks.throughput.endpoints.root,
+    requiredPermission: "throughput:view",
     children: [
       {
         title: "Endpoints",
@@ -175,41 +203,56 @@ const config: RouteItem[] = [
     title: "Configuration",
     component: ConfigurationView,
     redirect: routeLinks.configuration.license.link,
+    requiredAnyPermission: ["licensing:view", "notifications:view", "redirects:view", "connections:view", "endpoints:view"],
     children: [
       {
         title: "License",
         path: routeLinks.configuration.license.template,
         component: () => import("@/components/configuration/PlatformLicense.vue"),
+        requiredPermission: "licensing:view",
       },
       {
         title: "MassTransit Connector",
         path: routeLinks.configuration.massTransitConnector.template,
         component: () => import("@/components/configuration/MassTransitConnector.vue"),
+        requiredPermission: "connections:view",
       },
       {
         title: "Health Check Notifications",
         path: routeLinks.configuration.healthCheckNotifications.template,
         component: () => import("@/components/configuration/HealthCheckNotifications.vue"),
+        requiredPermission: "notifications:view",
       },
       {
         title: "Retry Redirects",
         path: routeLinks.configuration.retryRedirects.template,
         component: () => import("@/components/configuration/RetryRedirects.vue"),
+        requiredPermission: "redirects:view",
       },
       {
         title: "Connections",
         path: routeLinks.configuration.connections.template,
         component: () => import("@/components/configuration/PlatformConnections.vue"),
+        requiredPermission: "connections:view",
       },
       {
         title: "Endpoint Connection",
         path: routeLinks.configuration.endpointConnection.template,
         component: () => import("@/components/configuration/EndpointConnection.vue"),
+        requiredPermission: "endpoints:view",
+      },
+      {
+        title: "Custom indexes (spike)",
+        path: routeLinks.configuration.customIndexes.template,
+        component: () => import("@/views/CustomIndexesView.vue"),
+        // No requiredPermission — any authenticated user can view the configured indexes today.
+        // When POST/DELETE land, gate with a new "indexes:manage" permission.
       },
       {
         title: "Usage Setup",
         path: routeLinks.throughput.setup.root,
         redirect: routeLinks.throughput.setup.connectionSetup.link,
+        requiredPermission: "throughput:manage",
         component: () => import("@/views/throughputreport/SetupView.vue"),
         children: [
           {

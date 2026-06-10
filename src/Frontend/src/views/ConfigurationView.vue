@@ -11,6 +11,7 @@ import useThroughputStoreAutoRefresh from "@/composables/useThroughputStoreAutoR
 import useConnectionsAndStatsAutoRefresh from "@/composables/useConnectionsAndStatsAutoRefresh";
 import { useRedirectsStore } from "@/stores/RedirectsStore";
 import { useLicenseStore } from "@/stores/LicenseStore";
+import { usePermissions } from "@/composables/usePermissions";
 
 const { store: throughputStore } = useThroughputStoreAutoRefresh();
 const { hasErrors } = storeToRefs(throughputStore);
@@ -19,6 +20,15 @@ const connectionState = connectionStore.connectionState;
 const redirectsStore = useRedirectsStore();
 const licenseStore = useLicenseStore();
 const { licenseStatus } = licenseStore;
+
+const { can } = usePermissions();
+const showLicense = computed(() => can("licensing:view"));
+const showMassTransitConnector = computed(() => can("connections:view"));
+const showHealthCheckNotifications = computed(() => can("notifications:view"));
+const showRetryRedirects = computed(() => can("redirects:view"));
+const showConnections = computed(() => can("connections:view"));
+const showEndpointConnection = computed(() => can("endpoints:view"));
+const showUsageSetup = computed(() => can("throughput:manage"));
 
 onMounted(async () => {
   if (notConnected.value) {
@@ -54,11 +64,12 @@ function preventIfDisabled(e: Event) {
     <div class="row">
       <div class="col-sm-12">
         <div class="nav tabs">
-          <h5 :class="{ active: isRouteSelected(routeLinks.configuration.license.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="license">
+          <h5 v-if="showLicense" :class="{ active: isRouteSelected(routeLinks.configuration.license.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="license">
             <RouterLink :to="routeLinks.configuration.license.link">License</RouterLink>
             <exclamation-mark :type="convertToWarningLevel(licenseStatus.warningLevel)" />
           </h5>
           <h5
+            v-if="showUsageSetup"
             :class="{ active: isRouteSelected(routeLinks.throughput.setup.root) || isRouteSelected(routeLinks.throughput.setup.mask.link) || isRouteSelected(routeLinks.throughput.setup.diagnostics.link), disabled: notConnected }"
             @click.capture="preventIfDisabled"
             class="nav-item"
@@ -69,27 +80,51 @@ function preventIfDisabled(e: Event) {
             <exclamation-mark :type="WarningLevel.Danger" v-if="hasErrors" />
           </h5>
           <template v-if="!licenseStatus.isExpired">
-            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.massTransitConnector.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="mass-transit-connector">
+            <h5
+              v-if="showMassTransitConnector"
+              :class="{ active: isRouteSelected(routeLinks.configuration.massTransitConnector.link), disabled: notConnected }"
+              @click.capture="preventIfDisabled"
+              class="nav-item"
+              role="tab"
+              aria-label="mass-transit-connector"
+            >
               <RouterLink :to="routeLinks.configuration.massTransitConnector.link">MassTransit Connector</RouterLink>
             </h5>
-            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.healthCheckNotifications.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="health-check-notifications">
+            <h5
+              v-if="showHealthCheckNotifications"
+              :class="{ active: isRouteSelected(routeLinks.configuration.healthCheckNotifications.link), disabled: notConnected }"
+              @click.capture="preventIfDisabled"
+              class="nav-item"
+              role="tab"
+              aria-label="health-check-notifications"
+            >
               <RouterLink :to="routeLinks.configuration.healthCheckNotifications.link">Health Check Notifications</RouterLink>
             </h5>
-            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.retryRedirects.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="retry-redirects">
+            <h5 v-if="showRetryRedirects" :class="{ active: isRouteSelected(routeLinks.configuration.retryRedirects.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="retry-redirects">
               <RouterLink :to="routeLinks.configuration.retryRedirects.link">Retry Redirects ({{ redirectsStore.redirects.total }})</RouterLink>
             </h5>
-            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.connections.link) }" class="nav-item" role="tab" aria-label="connections">
+            <h5 v-if="showConnections" :class="{ active: isRouteSelected(routeLinks.configuration.connections.link) }" class="nav-item" role="tab" aria-label="connections">
               <RouterLink :to="routeLinks.configuration.connections.link">
                 Connections
                 <exclamation-mark v-if="connectionStore.displayConnectionsWarning" :type="WarningLevel.Danger" />
               </RouterLink>
             </h5>
-            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.endpointConnection.link), disabled: notConnected }" @click.capture="preventIfDisabled" class="nav-item" role="tab" aria-label="endpoint-connection">
+            <h5
+              v-if="showEndpointConnection"
+              :class="{ active: isRouteSelected(routeLinks.configuration.endpointConnection.link), disabled: notConnected }"
+              @click.capture="preventIfDisabled"
+              class="nav-item"
+              role="tab"
+              aria-label="endpoint-connection"
+            >
               <RouterLink :to="routeLinks.configuration.endpointConnection.link">Endpoint Connection</RouterLink>
+            </h5>
+            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.customIndexes.link) }" class="nav-item" role="tab" aria-label="custom-indexes">
+              <RouterLink :to="routeLinks.configuration.customIndexes.link">Custom indexes (spike)</RouterLink>
             </h5>
           </template>
           <template v-else>
-            <h5 :class="{ active: isRouteSelected(routeLinks.configuration.connections.link) }" class="nav-item" role="tab" aria-label="connections">
+            <h5 v-if="showConnections" :class="{ active: isRouteSelected(routeLinks.configuration.connections.link) }" class="nav-item" role="tab" aria-label="connections">
               <RouterLink :to="routeLinks.configuration.connections.link">
                 Connections
                 <exclamation-mark v-if="connectionStore.displayConnectionsWarning" :type="WarningLevel.Danger" />

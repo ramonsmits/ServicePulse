@@ -51,6 +51,7 @@ const configurationLinks = (root: string) => {
     retryRedirects: createLink("retry-redirects"),
     connections: createLink("connections"),
     endpointConnection: createLink("endpoint-connection"),
+    customIndexes: createLink("custom-indexes"),
   };
 };
 
@@ -108,6 +109,8 @@ const routeLinks = {
   configuration: configurationLinks("/configuration"),
   throughput: throughputLinks("/usage"),
   loggedOut: "/logged-out",
+  diagnostics: "/diagnostics",
+  filteredMessages: "/filtered-messages",
 };
 
 export default routeLinks;

@@ -2,6 +2,7 @@ import { useAuthStore } from "@/stores/AuthStore";
 import type { AuthConfig } from "@/types/auth";
 import { UserManager, type User } from "oidc-client-ts";
 import logger from "@/logger";
+import { getPermissionsFetcher } from "./usePermissions";
 
 let userManager: UserManager | null = null;
 
@@ -19,6 +20,8 @@ export function useAuth() {
       // Set up event handlers
       userManager.events.addUserLoaded((user: User) => {
         authStore.setToken(user.access_token);
+        // Cache invalidation (2): token renewal — refetch the permissions descriptor
+        void getPermissionsFetcher()();
       });
 
       userManager.events.addUserUnloaded(() => {

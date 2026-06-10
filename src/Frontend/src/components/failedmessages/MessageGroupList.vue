@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useShowToast } from "../../composables/toast";
 import createMessageGroupClient from "./messageGroupClient";
@@ -41,6 +41,13 @@ let pollingFaster = false;
 let refreshInterval: number | undefined = undefined;
 const props = defineProps<{
   sortFunction: (a: GroupOperation, b: GroupOperation) => number;
+  /**
+   * Optional whitelist of group IDs the list should render. When null/undefined the list
+   * is unfiltered. Set by FailedMessageGroups when custom-index chip filters are active —
+   * the parent fetches matching IDs from GET /api/recoverability/groups/{classifier}/by-attributes/group-ids
+   * and passes them here for client-side narrowing of the loaded list.
+   */
+  allowedGroupIds?: string[] | null;
 }>();
 const router = useRouter();
 let groupsWithNotesAdded: {
@@ -53,6 +60,17 @@ let savedGroupBy: string | undefined = undefined;
 const selectedGroup = ref<ExtendedGroupOperation>();
 
 const exceptionGroups = ref<ExtendedGroupOperation[]>([]);
+
+// Visible subset of exceptionGroups after applying the custom-index allowlist.
+// allowedGroupIds === undefined ⇒ no filter (parent isn't supplying one); render all.
+// allowedGroupIds.length === 0  ⇒ filter active but nothing matches; render nothing.
+const displayedGroups = computed<ExtendedGroupOperation[]>(() => {
+  if (props.allowedGroupIds === undefined || props.allowedGroupIds === null) {
+    return exceptionGroups.value;
+  }
+  const allowed = new Set(props.allowedGroupIds);
+  return exceptionGroups.value.filter((g) => allowed.has(g.id));
+});
 const loadingData = ref(true);
 const initialLoadComplete = ref(false);
 const showDeleteNoteModal = ref(false);
@@ -341,16 +359,16 @@ defineExpose<IMessageGroupList>({
   <div class="messagegrouplist">
     <div class="row">
       <div class="col-sm-12">
-        <no-data v-if="exceptionGroups.length === 0 && !loadingData" title="message groups" message="There are currently no grouped message failures"></no-data>
+        <no-data v-if="displayedGroups.length === 0 && !loadingData" title="message groups" message="There are currently no grouped message failures matching the current filter"></no-data>
       </div>
     </div>
 
     <div class="row">
       <div class="col-sm-12 no-mobile-side-padding">
-        <div v-if="exceptionGroups.length > 0">
+        <div v-if="displayedGroups.length > 0">
           <div
             :class="`row box box-group wf-${group.workflow_state.status} failed-message-group repeat-modify`"
-            v-for="(group, index) in exceptionGroups"
+            v-for="(group, index) in displayedGroups"
             :key="index"
             :disabled="group.count == 0"
             @mouseenter="group.hover2 = true"
@@ -407,7 +425,7 @@ defineExpose<IMessageGroupList>({
                         :disabled="group.count == 0 || isBeingRetried(group)"
                         @mouseenter="group.hover3 = true"
                         @mouseleave="group.hover3 = false"
-                        v-if="exceptionGroups.length > 0"
+                        v-if="displayedGroups.length > 0"
                         @click.stop="retryGroup(group)"
                       >
                         <span>Request retry</span>
@@ -420,7 +438,7 @@ defineExpose<IMessageGroupList>({
                         :disabled="group.count == 0 || isBeingRetried(group)"
                         @mouseenter="group.hover3 = true"
                         @mouseleave="group.hover3 = false"
-                        v-if="exceptionGroups.length > 0"
+                        v-if="displayedGroups.length > 0"
                         @click.stop="deleteGroup(group)"
                       >
                         <span>Delete group</span>

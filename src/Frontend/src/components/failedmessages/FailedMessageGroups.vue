@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, useTemplateRef } from "vue";
+import { computed, onMounted, ref, useTemplateRef } from "vue";
 import { useCookies } from "vue3-cookies";
 import LicenseNotExpired from "../../components/LicenseNotExpired.vue";
 import ServiceControlAvailable from "../ServiceControlAvailable.vue";
@@ -11,6 +11,9 @@ import type GroupOperation from "@/resources/GroupOperation";
 import getSortFunction from "@/components/getSortFunction";
 import { faArrowDownAZ, faArrowDownZA, faArrowDownShortWide, faArrowDownWideShort, faArrowDown19, faArrowDown91 } from "@fortawesome/free-solid-svg-icons";
 import serviceControlClient from "@/components/serviceControlClient";
+import CustomIndexFilterChips from "@/components/CustomIndexFilterChips.vue";
+import { useCustomIndexes } from "@/composables/useCustomIndexes";
+import { authFetch } from "@/composables/useAuthenticatedFetch";
 
 const selectedClassifier = ref<string>("");
 const classifiers = ref<string[]>([]);
@@ -71,6 +74,8 @@ function classifierChanged(classifier: string) {
   selectedClassifier.value = classifier;
   saveDefaultGroupingClassifier(classifier);
   messageGroupList.value?.loadFailedMessageGroups(classifier);
+  // Re-resolve the group ID allow-list against the new classifier
+  applyChipFilter();
 }
 
 function loadDefaultGroupingClassifier() {
@@ -94,7 +99,75 @@ onMounted(async () => {
 
   selectedClassifier.value = savedClassifier;
   messageGroupList.value?.loadFailedMessageGroups(savedClassifier);
+
+  // Custom-index chip-strip: prefetch the descriptor so chips render immediately.
+  refreshCustomIndexes();
 });
+
+// Custom-index filter chips: when any chip has a value, fetch the set of group IDs whose
+// underlying messages match those attribute predicates (for the currently-selected
+// classifier), and pass that set to MessageGroupList as an allow-list. Null ⇒ no filter.
+const { indexes: customIndexes, refresh: refreshCustomIndexes } = useCustomIndexes();
+const chipFilterValues = ref<Record<string, string>>({});
+const allowedGroupIds = ref<string[] | null>(null);
+const groupFilterError = ref<string | null>(null);
+
+const baseUrl = computed(() => {
+  const root = (window as unknown as { defaultConfig?: { service_control_url?: string } }).defaultConfig?.service_control_url ?? "/api/";
+  return root.endsWith("/") ? root : `${root}/`;
+});
+
+function activeFilterParams(): URLSearchParams | null {
+  const params = new URLSearchParams();
+  let any = false;
+  for (const idx of customIndexes.value) {
+    const v = chipFilterValues.value[idx.key];
+    if (v && v.trim().length > 0) {
+      const paramName = idx.operator === "starts-with" ? `attr.${idx.key}.starts-with` : `attr.${idx.key}`;
+      params.set(paramName, v.trim());
+      any = true;
+    }
+  }
+  return any ? params : null;
+}
+
+async function applyChipFilter() {
+  const params = activeFilterParams();
+  if (params === null) {
+    // No chips active → clear the filter and show all groups.
+    allowedGroupIds.value = null;
+    groupFilterError.value = null;
+    return;
+  }
+  if (!selectedClassifier.value) {
+    return;
+  }
+  try {
+    const url = `${baseUrl.value}recoverability/groups/${encodeURIComponent(selectedClassifier.value)}/by-attributes/group-ids?${params.toString()}`;
+    const response = await authFetch(url);
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const ids = (await response.json()) as string[];
+    allowedGroupIds.value = ids;
+    groupFilterError.value = null;
+  } catch (e) {
+    groupFilterError.value = (e as Error)?.message ?? String(e);
+    allowedGroupIds.value = [];
+  }
+}
+
+function clearChip(key: string) {
+  chipFilterValues.value[key] = "";
+  applyChipFilter();
+}
+
+function clearAllChips() {
+  for (const idx of customIndexes.value) {
+    chipFilterValues.value[idx.key] = "";
+  }
+  applyChipFilter();
+}
 </script>
 
 <template>
@@ -102,6 +175,28 @@ onMounted(async () => {
     <LicenseNotExpired>
       <section name="message_groups">
         <LastTenOperations></LastTenOperations>
+
+        <div v-if="customIndexes.length > 0" class="row chip-row">
+          <div class="col-12">
+            <div class="chip-strip-hint">
+              <span class="hint-label">Filter:</span>
+              <CustomIndexFilterChips
+                :filter-values="chipFilterValues"
+                @change="applyChipFilter"
+                @clear="clearChip"
+                @clear-all="clearAllChips"
+              />
+            </div>
+            <div v-if="allowedGroupIds !== null" class="text-muted chip-strip-note">
+              Groups list narrowed to <strong>{{ allowedGroupIds.length }}</strong> group(s)
+              whose underlying messages match the filter.
+            </div>
+            <div v-if="groupFilterError" class="alert alert-warning chip-strip-note">
+              Couldn't resolve matching groups: {{ groupFilterError }}
+            </div>
+          </div>
+        </div>
+
         <div class="row">
           <div class="col-6 list-section">
             <h3>Failed message group</h3>
@@ -127,7 +222,7 @@ onMounted(async () => {
             <div class="col-12">
               <div class="list-section">
                 <div class="col-12 form-group">
-                  <MessageGroupList :sortFunction="sortMethod" ref="messageGroupList"></MessageGroupList>
+                  <MessageGroupList :sortFunction="sortMethod" :allowed-group-ids="allowedGroupIds" ref="messageGroupList"></MessageGroupList>
                 </div>
               </div>
             </div>
@@ -144,5 +239,21 @@ onMounted(async () => {
   border: none;
   color: var(--sp-blue);
   text-decoration: underline;
+}
+.chip-row {
+  margin: 1rem 0 0.5rem;
+}
+.chip-strip-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.hint-label {
+  font-weight: 500;
+  color: #57606a;
+}
+.chip-strip-note {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
 }
 </style>
